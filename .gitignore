@@ -1,0 +1,16 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+
+# server (later increments)
+server/data/*.db
+server/data/backups
+.env
+.env.*
+
+# editor
+.vscode/*
+!.vscode/extensions.json
+.idea
