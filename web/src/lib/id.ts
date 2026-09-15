@@ -1,3 +1,4 @@
+/** Deterministic unique ID generator. */
 export const uid = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID()
