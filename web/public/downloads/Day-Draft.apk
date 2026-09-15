@@ -1,0 +1,5 @@
+Day Draft Native Android Mobile APK Placeholder
+To compile the standalone APK release:
+npm --prefix mobile run build:apk
+(or eas build -p android --profile preview)
+Output location: mobile/dist/Day-Draft.apk

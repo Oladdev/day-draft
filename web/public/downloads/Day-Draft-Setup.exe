@@ -1,0 +1,4 @@
+Day Draft Native Windows Desktop Installer Placeholder
+To compile the standalone binary release:
+npm --prefix desktop run tauri:build
+Output location: desktop/src-tauri/target/release/bundle/msi/Day-Draft.msi

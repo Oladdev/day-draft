@@ -13,10 +13,18 @@ import { EditItemModal } from './components/EditItemModal'
 import { UserModal } from './components/UserModal'
 import { EndOfDayReview } from './views/EndOfDayReview'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { DesktopTitlebar } from './components/DesktopTitlebar'
+import { CommandPalette } from './components/CommandPalette'
+import { LandingPage } from './landing/LandingPage'
 import { supabase, isCloudConfigured } from './lib/supabase'
 import { pullCloudData, subscribeToRealtime } from './lib/sync'
+import { useState } from 'react'
 
 export default function App() {
+  const [showLanding, setShowLanding] = useState<boolean>(() => {
+    // If URL contains ?app=true, bypass landing directly
+    return !window.location.search.includes('app=true')
+  })
   const view = useStore((s) => s.view)
   const items = useStore((s) => s.items)
   const user = useStore((s) => s.user)
@@ -89,37 +97,49 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [setCapture])
 
-  // Show onboarding wizard if not completed and no items exist
+  // Show landing page on web by default
+  if (showLanding) {
+    return <LandingPage onLaunchApp={() => setShowLanding(false)} />
+  }
+
+  // Auth Gate: Require login before entering the workstation
+  const isAuthGated = !user
   const showWizard = !settings.onboardingComplete && items.length === 0
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-100 font-sans text-slate-900 antialiased selection:bg-emerald-200 selection:text-emerald-900">
-      {view === 'auth' ? (
-        <ErrorBoundary>
-          <AuthView />
-        </ErrorBoundary>
-      ) : showWizard || view === 'onboarding' ? (
-        <ErrorBoundary>
-          <OnboardingWizard />
-        </ErrorBoundary>
-      ) : (
-        <>
-          <Sidebar />
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-100 font-sans text-slate-900 antialiased selection:bg-emerald-200 selection:text-emerald-900">
+      {/* Native Desktop Custom Titlebar */}
+      <DesktopTitlebar />
 
-          <main className="flex-1 overflow-hidden min-w-0 relative">
-            <ErrorBoundary>
-              {view === 'today' && <TodayView />}
-              {view === 'week' && <WeekView />}
-              {view === 'board' && <BoardView />}
-            </ErrorBoundary>
-          </main>
+      <div className="flex flex-1 overflow-hidden min-h-0 relative">
+        {isAuthGated || view === 'auth' ? (
+          <ErrorBoundary>
+            <AuthView />
+          </ErrorBoundary>
+        ) : showWizard || view === 'onboarding' ? (
+          <ErrorBoundary>
+            <OnboardingWizard />
+          </ErrorBoundary>
+        ) : (
+          <>
+            <Sidebar />
 
-          {/* Native Mobile Bottom Navigation Bar */}
-          <MobileNavBar />
-        </>
-      )}
+            <main className="flex-1 overflow-hidden min-w-0 relative">
+              <ErrorBoundary>
+                {view === 'today' && <TodayView />}
+                {view === 'week' && <WeekView />}
+                {view === 'board' && <BoardView />}
+              </ErrorBoundary>
+            </main>
+
+            {/* Native Mobile Bottom Navigation Bar */}
+            <MobileNavBar />
+          </>
+        )}
+      </div>
 
       {/* Global Overlays & Modals */}
+      <CommandPalette />
       <QuickCapture />
       <AddItemSheet />
       <EditItemModal />

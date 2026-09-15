@@ -6,6 +6,6 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    host: true, // expose on LAN so a phone can reach it in a later increment
+    host: false, // Strict localhost only; prevents cluttering terminal with virtual network IPs
   },
 })

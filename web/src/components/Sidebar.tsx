@@ -135,6 +135,16 @@ export function Sidebar() {
             <Moon size={17} className="shrink-0 text-indigo-500" />
             <span className="text-left flex-1">Day Review</span>
           </button>
+
+          <button
+            onClick={() => {
+              window.location.href = '/'
+            }}
+            className="flex w-full items-center gap-3 rounded-2xl border border-slate-200/80 px-3.5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+          >
+            <Sparkles size={17} className="shrink-0 text-emerald-600" />
+            <span className="text-left flex-1">Downloads & Landing</span>
+          </button>
         </div>
       </nav>
 

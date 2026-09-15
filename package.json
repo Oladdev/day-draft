@@ -4,12 +4,19 @@
   "version": "0.1.0",
   "description": "Second Brain daily routine scheduler — fixed/fluid blocks, energy routing, Now HUD.",
   "workspaces": [
-    "web"
+    "shared",
+    "web",
+    "desktop",
+    "mobile"
   ],
   "scripts": {
-    "dev": "npm run dev -w web",
-    "build": "npm run build -w web",
-    "preview": "npm run preview -w web",
-    "typecheck": "npm run typecheck -w web"
+    "dev:web": "npm --prefix web run dev",
+    "dev:desktop": "npm --prefix desktop run dev",
+    "dev:mobile": "npm --prefix mobile start",
+    "dev:mobile:tunnel": "npm --prefix mobile run start:tunnel",
+    "build:web": "npm --prefix web run build",
+    "build:desktop": "npm --prefix desktop run build",
+    "build:mobile": "npm --prefix mobile run typecheck",
+    "typecheck": "npm --prefix shared run typecheck && npm --prefix web run typecheck && npm --prefix desktop run typecheck && npm --prefix mobile run typecheck"
   }
 }

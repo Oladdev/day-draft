@@ -11,6 +11,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import type {
   ScheduleItem,
   Task,
+  TaskStatus,
   RecurrenceOverride,
   Category,
   BoardColumn,
@@ -325,7 +326,7 @@ export const useStore = create<AppState>()(
           const task = s.tasks.find((t) => t.id === id)
           if (!task) return s
           const isDone = task.status === 'done'
-          const nextStatus = isDone ? 'todo' : 'done'
+          const nextStatus: TaskStatus = isDone ? 'todo' : 'done'
           const nextColumnId = nextStatus === 'done' ? 'done' : 'doing'
 
           const nextTasks = s.tasks.map((t) =>

@@ -379,6 +379,26 @@ export function UserModal() {
 
               <div className="flex items-center justify-between rounded-2xl border border-slate-200 p-3.5">
                 <div>
+                  <div className="text-xs font-bold text-slate-900">Windows Hello / Biometric Sign-in</div>
+                  <div className="text-[11px] text-slate-500">Enable fast login using fingerprint or PIN</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!user?.email) return
+                    const { registerBiometricCredential } = await import('../lib/useBiometrics')
+                    const ok = await registerBiometricCredential(user.email)
+                    if (ok) alert('Windows Hello biometric passkey registered successfully!')
+                    else alert('Could not register biometrics on this browser or platform.')
+                  }}
+                  className="rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 min-h-[36px]"
+                >
+                  Configure Key
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between rounded-2xl border border-slate-200 p-3.5">
+                <div>
                   <div className="text-xs font-bold text-slate-900">Day Schedule Window</div>
                   <div className="text-[11px] text-slate-500">Default timeline wake / sleep boundaries</div>
                 </div>

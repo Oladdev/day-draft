@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Live Cloud Synchronization Engine
  * Handles bidirectional state synchronization between Zustand and Supabase PostgreSQL.
  * Automatically pulls on authentication, pushes mutations, and subscribes to realtime CDC events.
@@ -202,6 +202,6 @@ export function subscribeToRealtime(userId: string) {
 
   realtimeSubscription = channel
   return () => {
-    supabase.removeChannel(channel)
+    supabase?.removeChannel(channel)
   }
 }

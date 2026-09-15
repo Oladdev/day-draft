@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Sparkles,
   Lock,
@@ -14,6 +14,8 @@ import {
 import { useStore } from '../store'
 import { supabase, isCloudConfigured } from '../lib/supabase'
 import { pullCloudData, subscribeToRealtime } from '../lib/sync'
+import { authenticateWithBiometrics, isBiometricsAvailable } from '../lib/useBiometrics'
+import { Fingerprint } from 'lucide-react'
 
 export function AuthView() {
   const setView = useStore((s) => s.setView)
@@ -27,8 +29,25 @@ export function AuthView() {
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
   const [loading, setLoading] = useState(false)
+  const [hasBiometrics, setHasBiometrics] = useState(false)
   const [error, setError] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
+
+  useEffect(() => {
+    isBiometricsAvailable().then((avail) => setHasBiometrics(avail))
+  }, [])
+
+  const handleBiometricAuth = async () => {
+    setError('')
+    const result = await authenticateWithBiometrics()
+    if (result.success && result.email) {
+      login(result.email.split('@')[0], result.email)
+      setSuccessMsg('Windows Hello Biometric Verified!')
+      setTimeout(() => setView('today'), 350)
+    } else {
+      setError('Biometric authentication cancelled or not yet registered. Sign in first to enable.')
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -47,71 +66,71 @@ export function AuthView() {
     }
 
     if (!password || password.length < 6) {
-      setError('Password should be at least 6 characters.')
+      setError('Password must be at least 6 characters.')
       return
     }
 
     const displayName = mode === 'signup' ? name.trim() : user?.name || trimmedEmail.split('@')[0]
 
-    // If Supabase Cloud is configured, authenticate with backend
-    if (supabase && isCloudConfigured) {
-      setLoading(true)
-      try {
-        if (mode === 'signup') {
-          const { data, error: signUpError } = await supabase.auth.signUp({
-            email: trimmedEmail,
-            password,
-            options: {
-              data: { display_name: displayName },
-            },
-          })
-
-          if (signUpError) {
-            setError(signUpError.message)
-            setLoading(false)
-            return
-          }
-
-          const authUser = data.user
-          if (authUser) {
-            login(displayName, trimmedEmail)
-            useStore.setState({ user: { id: authUser.id, name: displayName, email: trimmedEmail } })
-            subscribeToRealtime(authUser.id)
-            pullCloudData(authUser.id)
-          }
-        } else {
-          const { data, error: signInError } = await supabase.auth.signInWithPassword({
-            email: trimmedEmail,
-            password,
-          })
-
-          if (signInError) {
-            setError(signInError.message)
-            setLoading(false)
-            return
-          }
-
-          const authUser = data.user
-          if (authUser) {
-            login(displayName, trimmedEmail)
-            useStore.setState({ user: { id: authUser.id, name: displayName, email: trimmedEmail } })
-            subscribeToRealtime(authUser.id)
-            pullCloudData(authUser.id)
-          }
-        }
-      } catch (err: any) {
-        setError(err.message || 'Authentication error')
-        setLoading(false)
-        return
-      }
-      setLoading(false)
-    } else {
-      // Local encrypted fallback
-      login(displayName, trimmedEmail)
+    // ZERO HALLUCINATION: Require real Supabase backend connection
+    if (!supabase || !isCloudConfigured) {
+      setError('Cloud authentication is not configured. Add valid VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file, or click "Continue as Guest" below for offline local storage.')
+      return
     }
 
+    setLoading(true)
+    try {
+      if (mode === 'signup') {
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email: trimmedEmail,
+          password,
+          options: {
+            data: { display_name: displayName },
+          },
+        })
+
+        if (signUpError) {
+          setError(signUpError.message)
+          setLoading(false)
+          return
+        }
+
+        const authUser = data.user
+        if (authUser) {
+          login(displayName, trimmedEmail)
+          useStore.setState({ user: { id: authUser.id, name: displayName, email: trimmedEmail } })
+          subscribeToRealtime(authUser.id)
+          pullCloudData(authUser.id)
+        }
+      } else {
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
+          email: trimmedEmail,
+          password,
+        })
+
+        if (signInError) {
+          setError(signInError.message)
+          setLoading(false)
+          return
+        }
+
+        const authUser = data.user
+        if (authUser) {
+          login(displayName, trimmedEmail)
+          useStore.setState({ user: { id: authUser.id, name: displayName, email: trimmedEmail } })
+          subscribeToRealtime(authUser.id)
+          pullCloudData(authUser.id)
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || 'Authentication error from server')
+      setLoading(false)
+      return
+    }
+    setLoading(false)
+
     setSuccessMsg(
-      mode === 'signup' ? 'Account ready! Connecting...' : 'Signed in successfully!'
+      mode === 'signup' ? 'Account created! Connecting workspace...' : 'Signed in successfully!'
     )
 
     setTimeout(() => {
@@ -325,6 +344,17 @@ export function AuthView() {
               </>
             )}
           </button>
+
+          {hasBiometrics && mode === 'signin' && (
+            <button
+              type="button"
+              onClick={handleBiometricAuth}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-slate-50/80 py-2.5 text-xs font-bold text-slate-800 hover:bg-slate-100 transition-colors min-h-[44px]"
+            >
+              <Fingerprint size={16} className="text-emerald-600" />
+              Sign in with Windows Hello / Touch ID
+            </button>
+          )}
 
           <div className="relative my-4">
             <div className="absolute inset-0 flex items-center">
