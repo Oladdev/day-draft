@@ -1,4 +1,4 @@
-﻿import { useState, useRef } from 'react'
+import { useState, useRef } from 'react'
 import {
   X,
   User,
@@ -12,6 +12,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { useStore } from '../store'
+import { isCloudConfigured } from '../lib/supabase'
 
 export function UserModal() {
   const userModalOpen = useStore((s) => s.userModalOpen)
@@ -332,10 +333,23 @@ export function UserModal() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-dashed border-slate-200 p-3 bg-white">
-              <div className="text-[11px] font-bold text-slate-700">Cloud Sync Interface</div>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Multi-device cloud synchronization will link to Supabase / backend in the next live release.
+            <div className="rounded-xl border border-slate-200 p-3 bg-white space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="text-[11px] font-bold text-slate-800">Supabase Multi-Device Cloud Sync</div>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase ${
+                    isCloudConfigured
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                      : 'bg-amber-50 text-amber-800 border border-amber-300'
+                  }`}
+                >
+                  {isCloudConfigured ? 'CONNECTED' : 'KEYS REQUIRED'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                {isCloudConfigured
+                  ? 'Realtime PostgreSQL CDC replication is active. Changes automatically synchronize across your phone and PC in milliseconds.'
+                  : 'Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your environment (.env) to activate instant multi-device sync.'}
               </p>
             </div>
           </div>

@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import {
   Sparkles,
   Lock,
@@ -12,6 +12,8 @@ import {
   EyeOff,
 } from 'lucide-react'
 import { useStore } from '../store'
+import { supabase, isCloudConfigured } from '../lib/supabase'
+import { pullCloudData, subscribeToRealtime } from '../lib/sync'
 
 export function AuthView() {
   const setView = useStore((s) => s.setView)
@@ -24,10 +26,11 @@ export function AuthView() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
@@ -43,16 +46,72 @@ export function AuthView() {
       return
     }
 
-    if (!password || password.length < 4) {
-      setError('Password should be at least 4 characters.')
+    if (!password || password.length < 6) {
+      setError('Password should be at least 6 characters.')
       return
     }
 
     const displayName = mode === 'signup' ? name.trim() : user?.name || trimmedEmail.split('@')[0]
-    login(displayName, trimmedEmail)
+
+    // If Supabase Cloud is configured, authenticate with backend
+    if (supabase && isCloudConfigured) {
+      setLoading(true)
+      try {
+        if (mode === 'signup') {
+          const { data, error: signUpError } = await supabase.auth.signUp({
+            email: trimmedEmail,
+            password,
+            options: {
+              data: { display_name: displayName },
+            },
+          })
+
+          if (signUpError) {
+            setError(signUpError.message)
+            setLoading(false)
+            return
+          }
+
+          const authUser = data.user
+          if (authUser) {
+            login(displayName, trimmedEmail)
+            useStore.setState({ user: { id: authUser.id, name: displayName, email: trimmedEmail } })
+            subscribeToRealtime(authUser.id)
+            pullCloudData(authUser.id)
+          }
+        } else {
+          const { data, error: signInError } = await supabase.auth.signInWithPassword({
+            email: trimmedEmail,
+            password,
+          })
+
+          if (signInError) {
+            setError(signInError.message)
+            setLoading(false)
+            return
+          }
+
+          const authUser = data.user
+          if (authUser) {
+            login(displayName, trimmedEmail)
+            useStore.setState({ user: { id: authUser.id, name: displayName, email: trimmedEmail } })
+            subscribeToRealtime(authUser.id)
+            pullCloudData(authUser.id)
+          }
+        }
+      } catch (err: any) {
+        setError(err.message || 'Authentication error')
+        setLoading(false)
+        return
+      }
+      setLoading(false)
+    } else {
+      // Local encrypted fallback
+      login(displayName, trimmedEmail)
+    }
 
     setSuccessMsg(
-      mode === 'signup' ? 'Account created successfully!' : 'Signed in successfully!'
+      mode === 'signup' ? 'Account ready! Connecting...' : 'Signed in successfully!'
     )
 
     setTimeout(() => {
@@ -246,10 +305,25 @@ export function AuthView() {
 
           <button
             type="submit"
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-3 text-sm font-bold text-white shadow-md hover:bg-emerald-500 active:scale-[0.99] transition-all min-h-[44px]"
+            disabled={loading}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-3 text-sm font-bold text-white shadow-md hover:bg-emerald-500 active:scale-[0.99] transition-all min-h-[44px] disabled:opacity-60"
           >
-            <span>{mode === 'signin' ? 'Sign In to Workspace' : 'Create Local Account'}</span>
-            <ArrowRight size={16} />
+            {loading ? (
+              <span>Authenticating...</span>
+            ) : (
+              <>
+                <span>
+                  {mode === 'signin'
+                    ? isCloudConfigured
+                      ? 'Sign In & Sync Devices'
+                      : 'Sign In to Workspace'
+                    : isCloudConfigured
+                    ? 'Create Account & Cloud Sync'
+                    : 'Create Local Account'}
+                </span>
+                <ArrowRight size={16} />
+              </>
+            )}
           </button>
 
           <div className="relative my-4">

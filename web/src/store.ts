@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Zustand Store — Central state for Day Draft
  *
  * Persisted to localStorage with automatic v3 migration.
@@ -21,6 +21,12 @@ import type {
 import { uid } from './lib/id'
 import { todayISO } from './lib/time'
 import { parseShortSyntax } from './lib/parse'
+import {
+  pushItemToCloud,
+  deleteItemFromCloud,
+  pushTaskToCloud,
+  deleteTaskFromCloud,
+} from './lib/sync'
 
 export interface UserProfile {
   id: string
@@ -203,19 +209,25 @@ export const useStore = create<AppState>()(
           version: 1,
         }
         set((s) => ({ items: [...s.items, newItem], lastSyncedAt: now() }))
+        const user = get().user
+        if (user) pushItemToCloud(newItem, user.id)
         return id
       },
 
       updateItem: (id, patch) => {
-        set((s) => ({
-          items: s.items.map((it) =>
+        set((s) => {
+          const nextItems = s.items.map((it) =>
             it.id === id ? { ...it, ...patch, updatedAt: now(), version: it.version + 1 } : it
-          ),
-          lastSyncedAt: now(),
-        }))
+          )
+          const updated = nextItems.find((it) => it.id === id)
+          if (updated && s.user) pushItemToCloud(updated, s.user.id)
+          return { items: nextItems, lastSyncedAt: now() }
+        })
       },
 
       removeItem: (id) => {
+        const user = get().user
+        if (user) deleteItemFromCloud(id, user.id)
         set((s) => ({
           items: s.items.filter((it) => it.id !== id),
           overrides: s.overrides.filter((o) => o.itemId !== id),
@@ -260,7 +272,7 @@ export const useStore = create<AppState>()(
       // ── Tasks ──
       addTask: (t) => {
         const id = uid()
-        const { boardColumns, tasks } = get()
+        const { boardColumns, tasks, user } = get()
         const columnId = t.columnId ?? boardColumns[0]?.id ?? 'backlog'
         const boardOrder =
           Math.max(0, ...tasks.filter((x) => x.columnId === columnId).map((x) => x.boardOrder)) + 1
@@ -275,6 +287,7 @@ export const useStore = create<AppState>()(
           version: 1,
         }
         set((s) => ({ tasks: [...s.tasks, task], lastSyncedAt: now() }))
+        if (user) pushTaskToCloud(task, user.id)
         return id
       },
 
@@ -290,15 +303,19 @@ export const useStore = create<AppState>()(
       },
 
       updateTask: (id, patch) => {
-        set((s) => ({
-          tasks: s.tasks.map((t) =>
+        set((s) => {
+          const nextTasks = s.tasks.map((t) =>
             t.id === id ? { ...t, ...patch, updatedAt: now(), version: t.version + 1 } : t
-          ),
-          lastSyncedAt: now(),
-        }))
+          )
+          const updated = nextTasks.find((t) => t.id === id)
+          if (updated && s.user) pushTaskToCloud(updated, s.user.id)
+          return { tasks: nextTasks, lastSyncedAt: now() }
+        })
       },
 
       removeTask: (id) => {
+        const user = get().user
+        if (user) deleteTaskFromCloud(id, user.id)
         set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id), lastSyncedAt: now() }))
       },
 
@@ -311,30 +328,36 @@ export const useStore = create<AppState>()(
           const nextStatus = isDone ? 'todo' : 'done'
           const nextColumnId = nextStatus === 'done' ? 'done' : 'doing'
 
+          const nextTasks = s.tasks.map((t) =>
+            t.id === id
+              ? {
+                  ...t,
+                  status: nextStatus,
+                  columnId: nextColumnId,
+                  updatedAt: now(),
+                  version: t.version + 1,
+                }
+              : t
+          )
+          const updated = nextTasks.find((t) => t.id === id)
+          if (updated && s.user) pushTaskToCloud(updated, s.user.id)
+
           return {
-            tasks: s.tasks.map((t) =>
-              t.id === id
-                ? {
-                    ...t,
-                    status: nextStatus,
-                    columnId: nextColumnId,
-                    updatedAt: now(),
-                    version: t.version + 1,
-                  }
-                : t
-            ),
+            tasks: nextTasks,
             lastSyncedAt: now(),
           }
         })
       },
 
       planTask: (id, date) => {
-        set((s) => ({
-          tasks: s.tasks.map((t) =>
+        set((s) => {
+          const nextTasks = s.tasks.map((t) =>
             t.id === id ? { ...t, scheduledDate: date, updatedAt: now(), version: t.version + 1 } : t
-          ),
-          lastSyncedAt: now(),
-        }))
+          )
+          const updated = nextTasks.find((t) => t.id === id)
+          if (updated && s.user) pushTaskToCloud(updated, s.user.id)
+          return { tasks: nextTasks, lastSyncedAt: now() }
+        })
       },
 
       // ── Board ──

@@ -13,12 +13,49 @@ import { EditItemModal } from './components/EditItemModal'
 import { UserModal } from './components/UserModal'
 import { EndOfDayReview } from './views/EndOfDayReview'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { supabase, isCloudConfigured } from './lib/supabase'
+import { pullCloudData, subscribeToRealtime } from './lib/sync'
 
 export default function App() {
   const view = useStore((s) => s.view)
   const items = useStore((s) => s.items)
+  const user = useStore((s) => s.user)
   const settings = useStore((s) => s.settings)
   const setCapture = useStore((s) => s.setCapture)
+  const login = useStore((s) => s.login)
+
+  // Supabase Auth & Realtime Session Lifecycle
+  useEffect(() => {
+    if (!supabase || !isCloudConfigured) return
+
+    // 1. Check active session on startup
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const u = session.user
+        const displayName = u.user_metadata?.display_name || u.email?.split('@')[0] || 'User'
+        login(displayName, u.email || '')
+        useStore.setState({ user: { id: u.id, name: displayName, email: u.email || '' } })
+        subscribeToRealtime(u.id)
+        pullCloudData(u.id)
+      }
+    })
+
+    // 2. Listen to auth state changes (sign in, sign out, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        const u = session.user
+        const displayName = u.user_metadata?.display_name || u.email?.split('@')[0] || 'User'
+        login(displayName, u.email || '')
+        useStore.setState({ user: { id: u.id, name: displayName, email: u.email || '' } })
+        subscribeToRealtime(u.id)
+        pullCloudData(u.id)
+      }
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [login])
 
   // Global Keyboard Shortcuts
   useEffect(() => {
